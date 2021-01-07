@@ -5,9 +5,12 @@
 - CPU: Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz
 - RAM: 16GB
 - dGPU: NVIDIA GeForce GTX 1050 Mobile (GP107M) 4GB
+- OS: Debian 10
 
 ## Working configuration
-- OVMF with VBIOS ACPI patch[1] (slightly modified)
+- Linux 5.8 kernel
+- QEMU 5.0.0
+- OVMF (commit c640186) with VBIOS ACPI patch[1] (slightly modified)
 - VBIOS extracted from Windows Registry (the one extracted from BIOS update also working)
 - Battery patch[2] (included and compiled with the OVMF patch above)
 - vendor_id = 1234567890a
@@ -23,7 +26,7 @@
 - For some reason, dGPU need to be initialized (?) by Linux first (either from host or a Linux VM), and it will working on Windows (no code 43, yay!) until you turned dGPU off (e.g. using bbswitch), then you need to redo this process again. I only tested this against the proprietary driver, not sure about nouveau.
 - GOPupd ROMs did not work, but good news is we are not required to use an UEFI ROM.
 - However, [this ROM](https://www.techpowerup.com/vgabios/219078/219078) works, and it also have EFI entry. But we did not need it, so I used ROM extracted from my machine.
-- I think Windows will get a blue screen (VIDEO TDR FAILURE) when I forced the resolution of GVT-g screen. Not sure if this true though.
+- I think Windows will get a blue screen (VIDEO TDR FAILURE) from the Intel driver when I forced the resolution of GVT-g screen. Not sure if this true though.
 - Windows guest freeze after a few minutes if I launched it with dGPU. Not sure about Linux guest though. At least it worked perfectly fine when only display on GVT-g screen and I can use nvidia-smi in it.
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
 
@@ -31,6 +34,7 @@
 - Things broke if you pass it to VM. I don't know why.
 - When I start the VM with it passed through, the host will stuttering a lot even though the CPU usage was normal.
 - I need to restart the host in order to make the dGPU working again.
+- I will try to pass only the audio controller, just to see what would happen.
 
 ## Resources and interesting stuffs
 - Optimus laptop dGPU passthrough guide: [https://gist.github.com/Misairu-G/616f7b2756c488148b7309addc940b28](https://gist.github.com/Misairu-G/616f7b2756c488148b7309addc940b28)
@@ -38,6 +42,9 @@
 - Someone got the NVIDIA Control Panel to work on a Muxless Optimus laptop: [https://www.reddit.com/r/VFIO/comments/i80ffe/i_just_got_the_nvidia_control_panel_to_work_on_a/](https://www.reddit.com/r/VFIO/comments/i80ffe/i_just_got_the_nvidia_control_panel_to_work_on_a/)
 - Current State of Optimus Muxless Laptop GPU Passthrough (Successful but Limited): [https://www.reddit.com/r/VFIO/comments/8gv60l/current_state_of_optimus_muxless_laptop_gpu/](https://www.reddit.com/r/VFIO/comments/8gv60l/current_state_of_optimus_muxless_laptop_gpu/)
 - libvirt XML format: [https://libvirt.org/formatdomain.html](https://libvirt.org/formatdomain.html)
+- The original ACS override patch: [https://lkml.org/lkml/2013/5/30/513](https://lkml.org/lkml/2013/5/30/513)
+- ACS override kernel builds: [https://queuecumber.gitlab.io/linux-acs-override/](https://queuecumber.gitlab.io/linux-acs-override/)
+- A VFIO blog: [https://vfio.blogspot.com/](https://vfio.blogspot.com/)
 
 ## References
 - [1] ACPI VBIOS stuff: [https://github.com/jscinoz/optimus-vfio-docs/issues/2](https://github.com/jscinoz/optimus-vfio-docs/issues/2)
