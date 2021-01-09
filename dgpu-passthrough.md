@@ -29,12 +29,26 @@
 - I think Windows will get a blue screen (VIDEO TDR FAILURE) from the Intel driver when I forced the resolution of GVT-g screen. Not sure if this true though.
 - Windows guest freeze after a few minutes if I launched it with dGPU. Not sure about Linux guest though. At least it worked perfectly fine when only display on GVT-g screen and I can use nvidia-smi in it.
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
+- "Unknown header type 7f" message appears in `lspci -v` if the device is turned off.
 
 ### Audio controller
 - Things broke if you pass it to VM. I don't know why.
 - When I start the VM with it passed through, the host will stuttering a lot even though the CPU usage was normal.
 - I need to restart the host in order to make the dGPU working again.
 - I will try to pass only the audio controller, just to see what would happen.
+
+### Reset procedure
+Here is a reset procedure in case the NVIDIA driver complains about devices fallen off the bus. There are likely some redundant step in this but at least it's usable. I will try to find more compact procedure later.
+
+1. Turn off dGPU
+2. Turn off its HDA controller
+3. Turn on dGPU
+4. Turn on HDA
+5. Remove HDA controller PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.1/remove"`
+6. Reset dGPU PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.0/reset"`
+7. Remove dGPU PCI
+8. Remove the PCI bridge at `0000:00:01.0`
+9. Rescan PCI devices using `# echo 1 > "/sys/bus/pci/rescan"`
 
 ## Resources and interesting stuffs
 - Optimus laptop dGPU passthrough guide: [https://gist.github.com/Misairu-G/616f7b2756c488148b7309addc940b28](https://gist.github.com/Misairu-G/616f7b2756c488148b7309addc940b28)
