@@ -13,7 +13,7 @@
 - OVMF (commit c640186) with VBIOS ACPI patch[1] (slightly modified)
 - VBIOS extracted from Windows Registry (the one extracted from BIOS update also working)
 - Battery patch[2] (included and compiled with the OVMF patch above)
-- vendor_id = 1234567890a
+- vendor_id = `1234567890a` (11 characters)
 - KVM state hidden
 - GVT-g with address 0000:00:02.0, using ROM from [https://github.com/HouQiming/i915ovmfPkg/](https://github.com/HouQiming/i915ovmfPkg/)
 - dGPU with address 0000:01:00.0 with sub-vendor-id and sub-device-id set
@@ -30,6 +30,7 @@
 - Windows guest freeze after a few minutes if I launched it with dGPU. Not sure about Linux guest though. At least it worked perfectly fine when only display on GVT-g screen and I can use nvidia-smi in it.
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
 - "Unknown header type 7f" message appears in `lspci -v` if the device is turned off.
+- Do not keep bbswitch loaded when removing the dGPU PCI device, otherwise it will not usable and cannot unload using `modprobe -r`.
 
 ### Audio controller
 - Things broke if you pass it to VM. I don't know why.
@@ -49,6 +50,29 @@ Here is a reset procedure in case the NVIDIA driver complains about devices fall
 7. Remove dGPU PCI
 8. Remove the PCI bridge at `0000:00:01.0`
 9. Rescan PCI devices using `# echo 1 > "/sys/bus/pci/rescan"`
+
+
+### State-transition table of bbswitch/nvhda
+All of them are idempotent operations. You cannot turn on HDA controller if dGPU was off.
+
+| Current state (bbswitch/nvhda) | Operation    | Next state (bbswitch/nvhda) | Changed? |
+|--------------------------------|--------------|-----------------------------|----------|
+| OFF/OFF                        | bbswitch OFF | OFF/OFF                     | No       |
+| OFF/OFF                        | bbswitch ON  | ON/OFF                      | Yes      |
+| OFF/OFF                        | nvhda OFF    | OFF/OFF                     | No       |
+| OFF/OFF                        | nvhda ON     | OFF/OFF                     | No       |
+| OFF/ON                         | bbswitch OFF | OFF/ON                      | No       |
+| OFF/ON                         | bbswitch ON  | ON/ON                       | Yes      |
+| OFF/ON                         | nvhda OFF    | OFF/OFF                     | Yes      |
+| OFF/ON                         | nvhda ON     | OFF/ON                      | No       |
+| ON/OFF                         | bbswitch OFF | OFF/OFF                     | Yes      |
+| ON/OFF                         | bbswitch ON  | ON/OFF                      | No       |
+| ON/OFF                         | nvhda OFF    | ON/OFF                      | No       |
+| ON/OFF                         | nvhda ON     | ON/ON                       | Yes      |
+| ON/ON                          | bbswitch OFF | OFF/ON                      | Yes      |
+| ON/ON                          | bbswitch ON  | ON/ON                       | No       |
+| ON/ON                          | nvhda OFF    | ON/OFF                      | Yes      |
+| ON/ON                          | nvhda ON     | ON/ON                       | No       |
 
 ## Resources and interesting stuffs
 - Optimus laptop dGPU passthrough guide: [https://gist.github.com/Misairu-G/616f7b2756c488148b7309addc940b28](https://gist.github.com/Misairu-G/616f7b2756c488148b7309addc940b28)
