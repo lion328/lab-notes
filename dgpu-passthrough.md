@@ -27,22 +27,26 @@
 - GOPupd ROMs did not work, but good news is we are not required to use an UEFI ROM.
 - However, [this ROM](https://www.techpowerup.com/vgabios/219078/219078) works, and it also have EFI entry. But we did not need it, so I used ROM extracted from my machine.
 - I think Windows will get a blue screen (VIDEO TDR FAILURE) from the Intel driver when I forced the resolution of GVT-g screen. Not sure if this true though.
-- Windows guest freeze after a few minutes if I launched it with dGPU. Not sure about Linux guest though. At least it worked perfectly fine when only display on GVT-g screen and I can use nvidia-smi in it.
+- Windows and Linux guest freeze after a few minutes if I launched it with dGPU. I don't know why.
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
 - "Unknown header type 7f" message appears in `lspci -v` if the device is turned off.
 - Do not keep bbswitch loaded when removing the dGPU PCI device, otherwise it will not usable and cannot unload using `modprobe -r`.
+- Enable MSI for HDA controller in Linux guest with `options snd-hda-intel enable_msi=1` in modprobe.conf
+- If VM freeze and we force it off, we likely to unable to boot any VM with disks that use virtio. Those VM could not get passed the Tianocore screen and used 100% on a CPU core. The host need to be reset. I don't know why.
 
 ### Audio controller
+
+These are problems I had found if I don't reset the audio controller before binding it to vfio-pci.
+
 - Things broke if you pass it to VM. I don't know why.
 - When I start the VM with it passed through, the host will stuttering a lot even though the CPU usage was normal.
 - I need to restart the host in order to make the dGPU working again.
-- I will try to pass only the audio controller, just to see what would happen.
 
 ### Reset procedure
-Here is a reset procedure in case the NVIDIA driver complains about devices fallen off the bus. There are likely some redundant step in this but at least it's usable. I will try to find more compact procedure later.
+Here is a reset procedure in case the NVIDIA driver complains about devices fallen off the bus.
 
-1. Turn off dGPU
-2. Turn off its HDA controller
+1. Turn off dGPU using bbswitch
+2. Turn off its HDA controller using nvhda
 3. Turn on dGPU
 4. Turn on HDA
 5. Remove HDA controller PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.1/remove"`
@@ -50,7 +54,11 @@ Here is a reset procedure in case the NVIDIA driver complains about devices fall
 7. Remove dGPU PCI
 8. Remove the PCI bridge at `0000:00:01.0`
 9. Rescan PCI devices using `# echo 1 > "/sys/bus/pci/rescan"`
+10. Unbind dGPU from drivers
+11. Load NVIDIA driver and bind it to dGPU
+12. Run `# nvidia-smi -r`
 
+Most of the time, you can just run step 3, 8-12.
 
 ### State-transition table of bbswitch/nvhda
 All of them are idempotent operations. You cannot turn on HDA controller if dGPU was off.
@@ -85,6 +93,6 @@ All of them are idempotent operations. You cannot turn on HDA controller if dGPU
 - A VFIO blog: [https://vfio.blogspot.com/](https://vfio.blogspot.com/)
 
 ## References
-- [1] ACPI VBIOS stuff: [https://github.com/jscinoz/optimus-vfio-docs/issues/2](https://github.com/jscinoz/optimus-vfio-docs/issues/2)
+- [1] ACPI VBIOS stuff and useful information: [https://github.com/jscinoz/optimus-vfio-docs/issues/2](https://github.com/jscinoz/optimus-vfio-docs/issues/2)
 - [2] Battery ACPI table: [https://wiki.archlinux.org/index.php/PCI_passthrough_via_OVMF#%22Error_43:_Driver_failed_to_load%22_with_mobile_(Optimus/max-q)_nvidia_GPUs](https://wiki.archlinux.org/index.php/PCI_passthrough_via_OVMF#%22Error_43:_Driver_failed_to_load%22_with_mobile_(Optimus/max-q)_nvidia_GPUs)
 
