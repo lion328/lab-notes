@@ -18,6 +18,8 @@
 - GVT-g with address 0000:00:02.0, using ROM from [https://github.com/HouQiming/i915ovmfPkg/](https://github.com/HouQiming/i915ovmfPkg/)
 - dGPU with address 0000:01:00.0 with sub-vendor-id and sub-device-id set
 - Before assign dGPU to vfio-pci, refresh it first by turning off, load NVIDIA module on host, assign it to the module, and running `nvidia-smi -r`.
+- Windows 10 guest
+- Debian 10 guest with 5.8 kernel
 
 ## Notes
 - Optimus still not working. The NVIDIA control panel did not have the option to select GPU.
@@ -27,12 +29,11 @@
 - GOPupd ROMs did not work, but good news is we are not required to use an UEFI ROM.
 - However, [this ROM](https://www.techpowerup.com/vgabios/219078/219078) works, and it also have EFI entry. But we did not need it, so I used ROM extracted from my machine.
 - I think Windows will get a blue screen (VIDEO TDR FAILURE) from the Intel driver when I forced the resolution of GVT-g screen. Not sure if this true though.
-- Windows and Linux guest freeze after a few minutes if I launched it with dGPU. I don't know why.
+- Windows and Linux guest freeze after a few minutes if I launched it with dGPU. If we force it off or let it crash, we likely to unable to boot any VM with disks that use virtio. Those VM could not get passed the Tianocore screen and used 100% on a CPU core. We can switch to SATA but dGPU will not be working. The host need to be reset. I don't know why.
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
 - "Unknown header type 7f" message appears in `lspci -v` if the device is turned off.
 - Do not keep bbswitch loaded when removing the dGPU PCI device, otherwise it will not usable and cannot unload using `modprobe -r`.
 - Enable MSI for HDA controller in Linux guest with `options snd-hda-intel enable_msi=1` in modprobe.conf
-- If VM freeze and we force it off, we likely to unable to boot any VM with disks that use virtio. Those VM could not get passed the Tianocore screen and used 100% on a CPU core. The host need to be reset. I don't know why.
 
 ### Audio controller
 
@@ -49,16 +50,19 @@ Here is a reset procedure in case the NVIDIA driver complains about devices fall
 2. Turn off its HDA controller using nvhda
 3. Turn on dGPU
 4. Turn on HDA
-5. Remove HDA controller PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.1/remove"`
-6. Reset dGPU PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.0/reset"`
-7. Remove dGPU PCI
-8. Remove the PCI bridge at `0000:00:01.0`
-9. Rescan PCI devices using `# echo 1 > "/sys/bus/pci/rescan"`
-10. Unbind dGPU from drivers
-11. Load NVIDIA driver and bind it to dGPU
-12. Run `# nvidia-smi -r`
+5. Unload bbswitch and nvhda
+6. Remove HDA controller PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.1/remove"`
+7. Reset dGPU PCI using `# echo 1 > "/sys/bus/pci/devices/0000:01:00.0/reset"`
+8. Remove dGPU PCI
+9. Remove the PCI bridge at `0000:00:01.0`
+10. Rescan PCI devices using `# echo 1 > "/sys/bus/pci/rescan"`
+11. Unbind dGPU from drivers
+12. Load bbswitch
+13. Turn on dGPU
+14. Load NVIDIA driver and bind it to dGPU
+15. Run `# nvidia-smi -r`
 
-Most of the time, you can just run step 3, 8-12.
+Most of the time, you can just run step 3, 9-11, 14, and 15.
 
 ### State-transition table of bbswitch/nvhda
 All of them are idempotent operations. You cannot turn on HDA controller if dGPU was off.
