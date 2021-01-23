@@ -25,11 +25,18 @@
 - Optimus still not working. The NVIDIA control panel did not have the option to select GPU.
 - If you don't need Optimus, pass only the dGPU and maybe QXL for controls.
 - PCI rescan will work only if the devices you want to rescan is in D0 state.
-- For some reason, dGPU need to be initialized (?) by Linux first (either from host or a Linux VM), and it will working on Windows (no code 43, yay!) until you turned dGPU off (e.g. using bbswitch), then you need to redo this process again. I only tested this against the proprietary driver, not sure about nouveau.
+- For some reason, dGPU need to be initialized (?) by Linux first (either from host or a Linux VM),
+  and it will working on Windows (no code 43, yay!) until you turned dGPU off (e.g. using bbswitch),
+  then you need to redo this process again. I only tested this against the proprietary driver, not sure about nouveau.
 - GOPupd ROMs did not work, but good news is we are not required to use an UEFI ROM.
-- However, [this ROM](https://www.techpowerup.com/vgabios/219078/219078) works, and it also have EFI entry. But we did not need it, so I used ROM extracted from my machine.
-- I think Windows will get a blue screen (VIDEO TDR FAILURE) from the Intel driver when I forced the resolution of GVT-g screen. Not sure if this true though.
-- Windows and Linux guest freeze after a few minutes if I launched it with dGPU. If we force it off or let it crash, we likely to unable to boot any VM with disks that use virtio. Those VM could not get passed the Tianocore screen and used 100% on a CPU core. We can switch to SATA but dGPU will not be working. The host need to be reset. I don't know why.
+- However, [this ROM](https://www.techpowerup.com/vgabios/219078/219078) works, and it also have EFI entry.
+  But we did not need it, so I used ROM extracted from my machine.
+- I think Windows will get a blue screen (VIDEO TDR FAILURE) from the Intel driver when I forced the resolution of GVT-g screen.
+  Not sure if this true though.
+- Windows and Linux guest freeze after a few minutes if I launched it with dGPU. If we force it off or let it crash,
+  we likely to unable to boot any VM with disks that use virtio. Those VM could not get passed the Tianocore screen
+  and used 100% on a CPU core. We can switch to SATA but dGPU will not be working. The host need to be reset. I don't know why.
+  [This bug report](https://lore.kernel.org/kvm/bug-209253-28872@https.bugzilla.kernel.org%2F/T/) might be useful.
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
 - "Unknown header type 7f" message appears in `lspci -v` if the device is turned off.
 - Do not keep bbswitch loaded when removing the dGPU PCI device, otherwise it will not usable and cannot unload using `modprobe -r`.
