@@ -5,23 +5,43 @@
 - CPU: Intel(R) Core(TM) i5-7300HQ CPU @ 2.50GHz
 - RAM: 16GB
 - dGPU: NVIDIA GeForce GTX 1050 Mobile (GP107M) 4GB
-- OS: Debian 10
 
-## Working configuration
-- Linux 5.8 kernel
-- QEMU 5.0.0
+## Latest configuration
+- Same with the previous one
+- HDMI Audio controller now working
+- POST screen on HDMI monitor
+- vender_id = `GenuineIntel`
+- Passed the ROM from [here](https://www.techpowerup.com/vgabios/219078/219078) in libvirt XML (`<rom file='...'/>`)
+- The ROM in OVMF is extract from BIOS update.
+- `rombar=on` (which is the default value)
+- GVT-g with address `0000:00:02.0`
+- Windows still not recognize this as an Optimus setup.
+
+### Notes
+- POST screen on HDMI works only if `rombar=on` and dGPU's audio controller passed through.
+- It is required to use that ROM in the XML, which have an EFI entry, to show POST on HDMI.
+- Not sure if this is enforced for ROM in OVMF. Need more tests.
+- UpGOPd stuff not working. Probably because that ROM have some code to initialize the screen. And/or upGOPd not worked with my ROM.
+- macOS also works if it have no second screen (no GVT-g or QXL or whatever).
+- During Windows boot, there might be some graphical glitches, then the dGPU was turned off and on again when the login screen show up.
+- NVIDIA Control Panel with the ROM from TechPowerUp does not recognize GVT-g monitor.
+- HDMI must be connected to a monitor during boot.
+
+## Older configuration
+- Debian 11 with Linux 5.10.0-5-amd64 kernel
+- QEMU 5.2.0
 - OVMF (commit c640186) with VBIOS ACPI patch[1] (slightly modified)
 - VBIOS extracted from Windows Registry (the one extracted from BIOS update also working)
 - Battery patch[2] (included and compiled with the OVMF patch above)
 - vendor_id = `1234567890a` (11 characters)
 - KVM state hidden
-- GVT-g with address 0000:00:02.0, using ROM from [https://github.com/HouQiming/i915ovmfPkg/](https://github.com/HouQiming/i915ovmfPkg/)
-- dGPU with address 0000:01:00.0 with sub-vendor-id and sub-device-id set
+- dGPU with address `0000:01:00.0` with sub-vendor-id and sub-device-id set
 - Before assign dGPU to vfio-pci, refresh it first by turning off, load NVIDIA module on host, assign it to the module, and running `nvidia-smi -r`.
 - Windows 10 guest
-- Debian 10 guest with 5.8 kernel
+- No HDMI sound
+- Hyper-V stuff
 
-## Notes
+### Notes
 - Optimus still not working. The NVIDIA control panel did not have the option to select GPU.
 - If you don't need Optimus, pass only the dGPU and maybe QXL for controls.
 - PCI rescan will work only if the devices you want to rescan is in D0 state.
@@ -35,20 +55,27 @@
   Not sure if this true though.
 - Windows and Linux guest freeze after a few minutes if I launched it with dGPU. If we force it off or let it crash,
   we likely to unable to boot any VM with disks that use virtio. Those VM could not get passed the Tianocore screen
-  and used 100% on a CPU core. We can switch to SATA but dGPU will not be working. The host need to be reset. I don't know why.
-  [This bug report](https://lore.kernel.org/kvm/bug-209253-28872@https.bugzilla.kernel.org%2F/T/) might be useful.
+  and used 100% on a CPU core. We can switch to SATA but dGPU will not be working. The host need to be reset.
+  [This was fixed](https://lore.kernel.org/kvm/bug-209253-28872@https.bugzilla.kernel.org%2F/T/).
 - I need to change some AppArmor config for file access (that also got facl configured) and for executing nvidia-smi.
 - "Unknown header type 7f" message appears in `lspci -v` if the device is turned off.
 - Do not keep bbswitch loaded when removing the dGPU PCI device, otherwise it will not usable and cannot unload using `modprobe -r`.
 - Enable MSI for HDA controller in Linux guest with `options snd-hda-intel enable_msi=1` in modprobe.conf
+- Keep bbswitch loaded after VM shutdown, so the machine can awake with dGPU enabled after sleep.
 
-### Audio controller
+#### Audio controller
 
-These are problems I had found if I don't reset the audio controller before binding it to vfio-pci.
+If I don't reset the audio controller before binding it to vfio-pci, then
 
 - Things broke if you pass it to VM. I don't know why.
 - When I start the VM with it passed through, the host will stuttering a lot even though the CPU usage was normal.
+  Same situation can be observed if you turn off the audio controller in VM (e.g. using nvhda).
 - I need to restart the host in order to make the dGPU working again.
+
+There are other problems too.
+
+- dGPU fails to work in Windows guest when I bind the audio controller to vfio-pci. Works normally when using pci-stub.
+- This means for now I can't get any audio out on HDMI.
 
 ### Reset procedure
 Here is a reset procedure in case the NVIDIA driver complains about devices fallen off the bus.
@@ -65,7 +92,7 @@ Here is a reset procedure in case the NVIDIA driver complains about devices fall
 10. Rescan PCI devices using `# echo 1 > "/sys/bus/pci/rescan"`
 11. Unbind dGPU from drivers
 12. Load bbswitch
-13. Turn on dGPU
+13. Turn off dGPU
 14. Load NVIDIA driver and bind it to dGPU
 15. Run `# nvidia-smi -r`
 
